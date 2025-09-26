@@ -25,6 +25,28 @@ import traitorIcon from "../../../../resources/images/TraitorIconWhite.svg";
 import xIcon from "../../../../resources/images/XIcon.svg";
 import { EventBus } from "../../../core/EventBus";
 
+function getKeyboardShortcut(
+  unitType: UnitType,
+  filterType: "attack" | "build",
+): string | null {
+  const shortcuts: Record<string, string> = {
+    // Build shortcuts
+    [`build_${UnitType.City}`]: "C",
+    [`build_${UnitType.Factory}`]: "F",
+    [`build_${UnitType.Port}`]: "D",
+    [`build_${UnitType.DefensePost}`]: "S",
+    [`build_${UnitType.MissileSilo}`]: "M",
+    [`build_${UnitType.SAMLauncher}`]: "L",
+    // Attack shortcuts
+    [`attack_${UnitType.AtomBomb}`]: "1",
+    [`attack_${UnitType.MIRV}`]: "2",
+    [`attack_${UnitType.HydrogenBomb}`]: "3",
+    [`attack_${UnitType.Warship}`]: "4",
+  };
+
+  return shortcuts[`${filterType}_${unitType}`] || null;
+}
+
 export interface MenuElementParams {
   myPlayer: PlayerView;
   selected: PlayerView | null;
@@ -301,6 +323,11 @@ export const infoMenuElement: MenuElement = {
     !params.selected || params.game.inSpawnPhase(),
   icon: infoIcon,
   color: COLORS.info,
+  tooltipItems: [
+    { text: "Player Info", className: "title" },
+    { text: "View player details", className: "description" },
+    { text: "Press [I]", className: "shortcut" },
+  ],
   action: (params: MenuElementParams) => {
     params.playerPanel.show(params.playerActions, params.tile);
   },
@@ -383,6 +410,12 @@ function createMenuElements(
         item.countable
           ? { text: `${params.buildMenu.count(item)}x`, className: "count" }
           : null,
+        getKeyboardShortcut(item.unitType, filterType)
+          ? {
+              text: `Press [${getKeyboardShortcut(item.unitType, filterType)}]`,
+              className: "shortcut",
+            }
+          : null,
       ].filter(
         (tooltipItem): tooltipItem is TooltipItem => tooltipItem !== null,
       ),
@@ -407,6 +440,11 @@ export const attackMenuElement: MenuElement = {
   disabled: (params: MenuElementParams) => params.game.inSpawnPhase(),
   icon: swordIcon,
   color: COLORS.attack,
+  tooltipItems: [
+    { text: "Attack", className: "title" },
+    { text: "Access attack options", className: "description" },
+    { text: "Press [E]", className: "shortcut" },
+  ],
 
   subMenu: (params: MenuElementParams) => {
     if (params === undefined) return [];
@@ -460,6 +498,7 @@ export const deleteUnitElement: MenuElement = {
       className: "description",
     },
   ],
+  tooltipItems: [{ text: "Press [X]", className: "shortcut" }],
   action: (params: MenuElementParams) => {
     const DELETE_SELECTION_RADIUS = 5;
     const myUnits = params.myPlayer
@@ -490,6 +529,11 @@ export const buildMenuElement: MenuElement = {
   disabled: (params: MenuElementParams) => params.game.inSpawnPhase(),
   icon: buildIcon,
   color: COLORS.build,
+  tooltipItems: [
+    { text: "Build Structures", className: "title" },
+    { text: "Access building menu", className: "description" },
+    { text: "Press [Q]", className: "shortcut" },
+  ],
 
   subMenu: (params: MenuElementParams) => {
     if (params === undefined) return [];
@@ -506,6 +550,11 @@ export const boatMenuElement: MenuElement = {
     ),
   icon: boatIcon,
   color: COLORS.boat,
+  tooltipItems: [
+    { text: "Boat Attack", className: "title" },
+    { text: "Send troops by boat", className: "description" },
+    { text: "Press [B]", className: "shortcut" },
+  ],
 
   action: async (params: MenuElementParams) => {
     const spawn = await params.playerActionHandler.findBestTransportShipSpawn(

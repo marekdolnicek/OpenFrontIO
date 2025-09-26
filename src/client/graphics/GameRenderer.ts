@@ -44,6 +44,7 @@ export function createRenderer(
   canvas: HTMLCanvasElement,
   game: GameView,
   eventBus: EventBus,
+  inputHandler?: any,
 ): GameRenderer {
   const transformHandler = new TransformHandler(game, eventBus, canvas);
   const userSettings = new UserSettings();
@@ -253,6 +254,7 @@ export function createRenderer(
       buildMenu,
       uiState,
       playerPanel,
+      inputHandler,
     ),
     new SpawnTimer(game, transformHandler),
     leaderboard,
