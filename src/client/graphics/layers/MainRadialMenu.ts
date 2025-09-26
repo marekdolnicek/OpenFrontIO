@@ -21,7 +21,13 @@ import {
 } from "./RadialMenuElements";
 
 import swordIcon from "../../../../resources/images/SwordIconWhite.svg";
-import { ContextMenuEvent } from "../../InputHandler";
+import { UnitType } from "../../../core/game/Game";
+import { ContextMenuEvent, ContextMenuKeyEvent } from "../../InputHandler";
+import {
+  boatMenuElement,
+  deleteUnitElement,
+  infoMenuElement,
+} from "./RadialMenuElements";
 
 @customElement("main-radial-menu")
 export class MainRadialMenu extends LitElement implements Layer {
@@ -40,6 +46,7 @@ export class MainRadialMenu extends LitElement implements Layer {
     private buildMenu: BuildMenu,
     private uiState: UIState,
     private playerPanel: PlayerPanel,
+    private inputHandler: any, // InputHandler - using any to avoid circular dependency
   ) {
     super();
 
@@ -52,6 +59,12 @@ export class MainRadialMenu extends LitElement implements Layer {
         }
         .radial-tooltip .count {
           color: ${COLORS.tooltip.count};
+        }
+        .radial-tooltip .shortcut {
+          margin-top: 4px;
+          color: #88cc88;
+          font-weight: bold;
+          font-style: italic;
         }
       `,
     };
@@ -98,6 +111,10 @@ export class MainRadialMenu extends LitElement implements Layer {
           );
         });
     });
+
+    this.eventBus.on(ContextMenuKeyEvent, (event) => {
+      this.handleContextMenuKey(event.action);
+    });
   }
 
   private async updatePlayerActions(
@@ -134,6 +151,9 @@ export class MainRadialMenu extends LitElement implements Layer {
     this.radialMenu.setParams(params);
     if (screenX !== null && screenY !== null) {
       this.radialMenu.showRadialMenu(screenX, screenY);
+      if (this.inputHandler) {
+        this.inputHandler.setContextMenuOpen(true);
+      }
     } else {
       this.radialMenu.refresh();
     }
@@ -166,6 +186,9 @@ export class MainRadialMenu extends LitElement implements Layer {
   closeMenu() {
     if (this.radialMenu.isMenuVisible()) {
       this.radialMenu.hideRadialMenu();
+      if (this.inputHandler) {
+        this.inputHandler.setContextMenuOpen(false);
+      }
     }
 
     if (this.buildMenu.isVisible) {
@@ -178,6 +201,128 @@ export class MainRadialMenu extends LitElement implements Layer {
 
     if (this.playerPanel.isVisible) {
       this.playerPanel.hide();
+    }
+  }
+
+  private handleContextMenuKey(action: string) {
+    if (!this.radialMenu.isMenuVisible()) {
+      return;
+    }
+
+    const params = this.radialMenu.getParams();
+    if (!params) {
+      return;
+    }
+
+    this.executeContextMenuAction(action, params);
+  }
+
+  private executeContextMenuAction(action: string, params: MenuElementParams) {
+    switch (action) {
+      // Submenu navigation
+      case "buildMenu":
+        this.triggerSubmenu("build", params);
+        break;
+      case "attackMenu":
+        this.triggerSubmenu("attack", params);
+        break;
+
+      // Direct build actions
+      case "buildCity":
+        this.triggerBuildAction(UnitType.City, params);
+        this.closeMenu();
+        break;
+      case "buildFactory":
+        this.triggerBuildAction(UnitType.Factory, params);
+        this.closeMenu();
+        break;
+      case "buildDocks":
+        this.triggerBuildAction(UnitType.Port, params);
+        this.closeMenu();
+        break;
+      case "buildDefense":
+        this.triggerBuildAction(UnitType.DefensePost, params);
+        this.closeMenu();
+        break;
+      case "buildMissile":
+        this.triggerBuildAction(UnitType.MissileSilo, params);
+        this.closeMenu();
+        break;
+      case "buildSam":
+        this.triggerBuildAction(UnitType.SAMLauncher, params);
+        this.closeMenu();
+        break;
+
+      // Direct attack actions
+      case "attackAtom":
+        this.triggerBuildAction(UnitType.AtomBomb, params);
+        this.closeMenu();
+        break;
+      case "attackMirv":
+        this.triggerBuildAction(UnitType.MIRV, params);
+        this.closeMenu();
+        break;
+      case "attackHydrogen":
+        this.triggerBuildAction(UnitType.HydrogenBomb, params);
+        this.closeMenu();
+        break;
+      case "attackWarship":
+        this.triggerBuildAction(UnitType.Warship, params);
+        this.closeMenu();
+        break;
+
+      // Other actions
+      case "boat":
+        this.triggerBoatAction(params);
+        this.closeMenu();
+        break;
+      case "info":
+        this.triggerInfoAction(params);
+        this.closeMenu();
+        break;
+      case "deleteUnit":
+        this.triggerDeleteAction(params);
+        this.closeMenu();
+        break;
+    }
+  }
+
+  private triggerBuildAction(unitType: any, params: MenuElementParams) {
+    const buildableUnit = params.playerActions.buildableUnits.find(
+      (bu) => bu.type === unitType,
+    );
+    if (buildableUnit) {
+      params.buildMenu.sendBuildOrUpgrade(buildableUnit, params.tile);
+    }
+  }
+
+  private triggerSubmenu(menuType: string, _params: MenuElementParams) {
+    const menuId = menuType === "build" ? "build" : "attack";
+    this.radialMenu.navigateToMenuById(menuId);
+  }
+
+  private triggerBoatAction(params: MenuElementParams) {
+    if (
+      params.playerActions.buildableUnits.some(
+        (unit) => unit.type === UnitType.TransportShip && unit.canBuild,
+      )
+    ) {
+      // Trigger boat action
+      if (boatMenuElement.action && !boatMenuElement.disabled(params)) {
+        boatMenuElement.action(params);
+      }
+    }
+  }
+
+  private triggerInfoAction(params: MenuElementParams) {
+    if (infoMenuElement.action && !infoMenuElement.disabled(params)) {
+      infoMenuElement.action(params);
+    }
+  }
+
+  private triggerDeleteAction(params: MenuElementParams) {
+    if (deleteUnitElement.action && !deleteUnitElement.disabled(params)) {
+      deleteUnitElement.action(params);
     }
   }
 }

@@ -107,6 +107,10 @@ export class CenterCameraEvent implements GameEvent {
   constructor() {}
 }
 
+export class ContextMenuKeyEvent implements GameEvent {
+  constructor(public readonly action: string) {}
+}
+
 export class AutoUpgradeEvent implements GameEvent {
   constructor(
     public readonly x: number,
@@ -132,11 +136,13 @@ export class InputHandler {
   private moveInterval: NodeJS.Timeout | null = null;
   private activeKeys = new Set<string>();
   private keybinds: Record<string, string> = {};
+  private contextMenuKeybinds: Record<string, string> = {};
 
   private readonly PAN_SPEED = 5;
   private readonly ZOOM_SPEED = 10;
 
   private userSettings: UserSettings = new UserSettings();
+  private isContextMenuOpen: boolean = false;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -160,6 +166,34 @@ export class InputHandler {
       modifierKey: "ControlLeft",
       altKey: "AltLeft",
       ...JSON.parse(localStorage.getItem("settings.keybinds") ?? "{}"),
+    };
+
+    this.contextMenuKeybinds = {
+      // Main menu navigation
+      buildMenu: "KeyQ", // Open build submenu
+      attackMenu: "KeyE", // Open attack submenu
+
+      // Direct build actions
+      buildCity: "KeyC",
+      buildFactory: "KeyF",
+      buildDocks: "KeyD",
+      buildDefense: "KeyS",
+      buildMissile: "KeyM",
+      buildSam: "KeyL",
+
+      // Direct attack actions
+      attackAtom: "Digit1",
+      attackMirv: "Digit2",
+      attackHydrogen: "Digit3",
+      attackWarship: "Digit4",
+
+      // Other actions
+      boat: "KeyB",
+      info: "KeyI",
+      deleteUnit: "KeyX",
+      ...JSON.parse(
+        localStorage.getItem("settings.contextMenuKeybinds") ?? "{}",
+      ),
     };
 
     // Mac users might have different keybinds
@@ -203,6 +237,11 @@ export class InputHandler {
     this.moveInterval = setInterval(() => {
       let deltaX = 0;
       let deltaY = 0;
+
+      // Skip if context menu is open
+      if (this.isContextMenuOpen) {
+        return;
+      }
 
       // Skip if shift is held down
       if (
@@ -254,18 +293,24 @@ export class InputHandler {
       }
     }, 1);
 
-    window.addEventListener("keydown", (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        this.eventBus.emit(new CloseViewEvent());
+        return;
+      }
+
+      if (this.isContextMenuOpen) {
+        this.handleContextMenuKeydown(e);
+        return;
+      }
+
       if (e.code === this.keybinds.toggleView) {
         e.preventDefault();
         if (!this.alternateView) {
           this.alternateView = true;
           this.eventBus.emit(new AlternateViewEvent(true));
         }
-      }
-
-      if (e.code === "Escape") {
-        e.preventDefault();
-        this.eventBus.emit(new CloseViewEvent());
       }
 
       if (
@@ -293,8 +338,15 @@ export class InputHandler {
       ) {
         this.activeKeys.add(e.code);
       }
-    });
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", (e) => {
+      if (this.isContextMenuOpen) {
+        return;
+      }
+
       if (e.code === this.keybinds.toggleView) {
         e.preventDefault();
         this.alternateView = false;
@@ -571,5 +623,33 @@ export class InputHandler {
       (this.keybinds.altKey === "ShiftLeft" && event.shiftKey) ||
       (this.keybinds.altKey === "MetaLeft" && event.metaKey)
     );
+  }
+
+  setContextMenuOpen(isOpen: boolean) {
+    this.isContextMenuOpen = isOpen;
+  }
+
+  getContextMenuKeybinds(): Record<string, string> {
+    return this.contextMenuKeybinds;
+  }
+
+  private handleContextMenuKeydown(e: KeyboardEvent) {
+    e.preventDefault();
+
+    const action = this.getContextMenuActionForKey(e.code);
+    if (action) {
+      this.eventBus.emit(new ContextMenuKeyEvent(action));
+    }
+  }
+
+  private getContextMenuActionForKey(keyCode: string): string | null {
+    for (const [action, assignedKey] of Object.entries(
+      this.contextMenuKeybinds,
+    )) {
+      if (assignedKey === keyCode) {
+        return action;
+      }
+    }
+    return null;
   }
 }

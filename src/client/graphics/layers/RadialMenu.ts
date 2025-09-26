@@ -924,6 +924,25 @@ export class RadialMenu implements Layer {
     this.params = params;
   }
 
+  public getParams(): MenuElementParams | null {
+    return this.params;
+  }
+
+  public navigateToMenuById(menuId: string) {
+    if (!this.params) return;
+
+    const menuItem = this.currentMenuItems.find((item) => item.id === menuId);
+    if (menuItem && menuItem.subMenu) {
+      const subMenu = menuItem.subMenu(this.params);
+      if (subMenu && subMenu.length > 0) {
+        this.navigationInProgress = true;
+        this.selectedItemId = menuItem.id;
+        this.navigateToSubMenu(subMenu);
+        this.updateCenterButtonState("back");
+      }
+    }
+  }
+
   private findMenuItem(id: string): MenuElement | undefined {
     return this.currentMenuItems.find((item) => item.id === id);
   }
